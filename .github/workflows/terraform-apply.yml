@@ -1,0 +1,62 @@
+# Terraform Apply - runs on push to main (enterprise: add environment approval)
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'resource-groups/**'
+      - '.github/workflows/terraform-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+  TF_STATE_STORAGE_ACCOUNT: ${{ secrets.TF_STATE_STORAGE_ACCOUNT }}
+  TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+
+jobs:
+  apply:
+    name: Apply
+    runs-on: ubuntu-latest
+    environment: production   # Optional: add approval in GitHub repo settings
+    strategy:
+      matrix:
+        rg: ${{ fromJson(needs.discover.outputs.resource_groups) }}
+    needs: discover
+    defaults:
+      run:
+        working-directory: resource-groups/${{ matrix.rg }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve
+
+  discover:
+    name: Discover resource groups
+    runs-on: ubuntu-latest
+    outputs:
+      resource_groups: ${{ steps.set.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: List resource group dirs
+        id: set
+        run: |
+          list=$(find resource-groups -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "list=$list" >> $GITHUB_OUTPUT
