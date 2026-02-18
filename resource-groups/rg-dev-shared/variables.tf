@@ -3,22 +3,6 @@ variable "subscription_id" {
   description = "Azure subscription ID"
 }
 
-variable "tf_state_resource_group" {
-  type        = string
-  description = "Resource group containing the storage account for Terraform state"
-}
-
-variable "tf_state_storage_account" {
-  type        = string
-  description = "Storage account name for Terraform state"
-}
-
-variable "tf_state_container" {
-  type        = string
-  default     = "tfstate"
-  description = "Blob container name for Terraform state"
-}
-
 variable "location" {
   type        = string
   default     = "westeurope"
